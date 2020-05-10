@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "skyway-js": "^2.0.5",
+    "voice-activity-detection": "0.0.5",
     "vue": "^2.6.11",
     "vuetify": "^2.2.27"
   },
