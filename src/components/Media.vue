@@ -29,7 +29,7 @@
 
     <v-row>
       <v-col cols="12" md="6" lg="4">
-        <video :srcObject.prop="localStream" autoplay muted playsinline></video>
+        <video :srcObject.prop="localStream" :class="amISpeaking" autoplay muted playsinline></video>
       </v-col>
       <v-col v-for="remoteStream in remoteStreams" :key="remoteStream.id" cols="12" md="6" lg="4">
         <video :srcObject.prop="remoteStream.stream" autoplay playsinline></video>
@@ -40,12 +40,14 @@
 
 <script>
   import Peer from 'skyway-js';
+  import Vad from 'voice-activity-detection'
 
   export default {
     name: "Media",
     data() {
       return {
         isJoined: false,
+        amISpeaking: '',
         localStream: undefined,
         connectionModes: ['P2P', 'SFU'],
         connectionMode: 'P2P',
@@ -60,7 +62,10 @@
     },
     mounted() {
       navigator.mediaDevices.getUserMedia({ video: true, audio: { echoCancellation: true, noiseSuppression: true } })
-        .then(stream => this.localStream = stream)
+        .then(stream => {
+          this.localStream = stream
+          this.startVoiceDetection(stream)
+        })
         .catch(error => console.error('mediaDevice.getUserMedia() error:', error)
       )
 
@@ -118,23 +123,64 @@
 
       scrollMessagesArea() {
         let el = this.$el.querySelector("#messagesArea")
-        console.log(el)
         el.scrollTop = el.scrollHeight
-      }
+      },
+
+      startVoiceDetection(stream, action) {
+        // window.AudioContext = window.AudioContext;
+        let audioContext = new AudioContext()
+        let vadOptions = {
+          minNoiseLevel: 0.65,
+          maxNoiseLevel: 0.9,
+          onVoiceStart: () => {
+            this.amISpeaking = 'speaking'
+          },
+          onVoiceStop: () => {
+            this.amISpeaking = ''
+          },
+          onUpdate: (volume) => {
+            // 音声が検出されると発火
+            // action(volume)
+          }
+        };
+        // streamオブジェクトの音声検出を開始
+        this.vadobject = Vad(audioContext, stream, vadOptions)
+      },
+
+      stopVoiceDetection(){
+        if(this.vadobject){
+          // 音声検出を終了する
+          this.vadobject.destroy();
+        }
+      },
     },
   }
 </script>
 
 <style scoped lang="sass">
   $primary-color: #FFC107
+  @keyframes speaking
+    0%
+      box-shadow: 0 0 0 0 $primary-color
+    100%
+      box-shadow: 0 0 0 3px $primary-color
+
+
   video
     width: 100%
     transform: scaleX(-1)
     object-fit: cover
-    border: solid 6px $primary-color
+    border: solid 7px $primary-color
     border-radius: 10px
     /*&:before*/
     /*  content: ""*/
     /*  display: block*/
     /*  !*padding-top: 75%*!*/
+    &.speaking
+      animation-name: speaking
+      animation-duration: 0.2s
+      animation-iteration-count: infinite
+
+
+
 </style>
