@@ -32,7 +32,7 @@
         <video :srcObject.prop="localStream" :class="amISpeaking" autoplay muted playsinline></video>
       </v-col>
       <v-col v-for="remoteStream in remoteStreams" :key="remoteStream.id" cols="12" md="6" lg="4">
-        <video :srcObject.prop="remoteStream.stream" autoplay playsinline></video>
+        <video :srcObject.prop="remoteStream.stream" :class="remoteStream.isSpeaking" autoplay playsinline></video>
       </v-col>
     </v-row>
   </v-container>
@@ -49,6 +49,7 @@
         isJoined: false,
         amISpeaking: '',
         localStream: undefined,
+        localVadObject: undefined,
         connectionModes: ['P2P', 'SFU'],
         connectionMode: 'P2P',
         peer: new Peer({ key: process.env.SKY_WAY_API_KEY, debug: 3 }),
@@ -64,27 +65,17 @@
       navigator.mediaDevices.getUserMedia({ video: true, audio: { echoCancellation: true, noiseSuppression: true } })
         .then(stream => {
           this.localStream = stream
-          this.startVoiceDetection(stream)
+          this.localVadObject = this.startVoiceDetection(stream, isSpeaking => this.amISpeaking = isSpeaking)
         })
         .catch(error => console.error('mediaDevice.getUserMedia() error:', error)
       )
 
       this.peer.on('open', () => this.peerId = this.peer.id)
-      // this.peer.on('call', mediaConnecton => { // 着信イベント
-      //   mediaConnecton.answer(this.localStream)
-      //   mediaConnecton.on('stream', stream => this.remoteStream = stream) // 相手の映像を取得したイベント
-      // })
       this.peer.on('error', err => alert(`エラーが発生しました。：${err.message}`))
       this.peer.on('close', () => alert('通信が切断されました。'))
     },
 
     methods: {
-      // 1対1
-      // makeCall() {
-      //   const mediaConnection = this.peer.call(this.remoteID, this.remoteStream)
-      //   mediaConnection.on('stream', stream => this.remoteStream = stream) // 相手の映像を取得したイベント
-      // },
-
       join() {
         if (this.localStream === undefined) return
         this.room = this.peer.joinRoom(this.roomName, { mode: this.connectionMode, stream: this.localStream })
@@ -94,18 +85,25 @@
           this.isJoined = true
         })
         this.room.on('peerJoin', peerId => this.messages.push(`${peerId}さんがルームに参加しました。`))
-        this.room.on('stream', stream => this.remoteStreams.push({ stream: stream, id: stream.peerId }))
+        this.room.on('stream', stream => {
+          let remoteStreamHash = { stream: stream, id: stream.peerId, isSpeaking: '', vadObject: undefined }
+          remoteStreamHash.vadObject = this.startVoiceDetection(stream, isSpeaking => remoteStreamHash.isSpeaking = isSpeaking)
+          this.remoteStreams.push(remoteStreamHash)
+        })
         this.room.on('data', ({ data, src }) => {
           this.messages.push(`${src}：${data}\n`)
           this.scrollMessagesArea()
         })
         this.room.on('peerLeave', peerId => {
+          let remoteStream = this.remoteStreams.find(remoteStream => remoteStream.id == peerId)
+          this.stopVoiceDetection(remoteStream.vadObject)
           this.remoteStreams = this.remoteStreams.filter(remoteStream => remoteStream.id != peerId)
           this.messages.push(`${peerId}さんが退出しました。`)
         })
         this.room.on('close', () => {
           this.messages.push(`ルーム"${this.room.name}"を退出しました。`)
-          this.remoteStreams.length = 0
+          this.remoteStreams.forEach(remoteStream => this.stopVoiceDetection(remoteStream.vadObject))
+          this.remoteStreams.length = 0 // TODO これでstreamデータが消えているのか検証する
           this.isJoined = false
         })
       },
@@ -126,32 +124,29 @@
         el.scrollTop = el.scrollHeight
       },
 
-      startVoiceDetection(stream, action) {
-        // window.AudioContext = window.AudioContext;
+      startVoiceDetection(stream, setIsSpeaking) {
         let audioContext = new AudioContext()
         let vadOptions = {
+          bufferLen: 4096,
           minNoiseLevel: 0.65,
           maxNoiseLevel: 0.9,
           onVoiceStart: () => {
-            this.amISpeaking = 'speaking'
+            setIsSpeaking('speaking')
           },
           onVoiceStop: () => {
-            this.amISpeaking = ''
+            setIsSpeaking('')
           },
           onUpdate: (volume) => {
             // 音声が検出されると発火
-            // action(volume)
           }
         };
+        console.log('はじまったよ')
         // streamオブジェクトの音声検出を開始
-        this.vadobject = Vad(audioContext, stream, vadOptions)
+        return Vad(audioContext, stream, vadOptions)
       },
 
-      stopVoiceDetection(){
-        if(this.vadobject){
-          // 音声検出を終了する
-          this.vadobject.destroy();
-        }
+      stopVoiceDetection(vadObject){
+        vadObject.destroy();
       },
     },
   }
