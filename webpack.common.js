@@ -1,6 +1,5 @@
 const path = require('path')
 const VueLoaderPlugin = require('vue-loader/lib/plugin')
-const Dotenv = require('dotenv-webpack')
 const CopyPlugin = require('copy-webpack-plugin')
 
 module.exports = {
@@ -61,7 +60,6 @@ module.exports = {
   },
   plugins: [
     new VueLoaderPlugin(),
-    new Dotenv('./.env'),
     new CopyPlugin([{ from: './public' }])
   ],
   node: {
