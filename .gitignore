@@ -1,1 +1,6 @@
 .env
+
+dest/*
+!dest/server.js
+
+node_modules/.cache/*
