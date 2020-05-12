@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --hot",
-    "build": "webpack -p"
+    "dev": "webpack-dev-server --hot",
+    "start": "node dest/server.js",
+    "heroku-postbuild": "webpack -p"
   },
   "author": "",
   "license": "ISC",
