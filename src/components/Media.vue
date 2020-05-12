@@ -140,7 +140,6 @@
             // 音声が検出されると発火
           }
         };
-        console.log('はじまったよ')
         // streamオブジェクトの音声検出を開始
         return Vad(audioContext, stream, vadOptions)
       },
