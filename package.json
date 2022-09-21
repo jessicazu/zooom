@@ -36,7 +36,7 @@
     "skyway-js": "^2.0.5",
     "voice-activity-detection": "0.0.5",
     "vue": "^2.6.11",
-    "vuetify": "^2.2.27",
+    "vuetify": "^2.6.10",
     "webpack-merge": "^4.2.2"
   },
   "browserslist": "last 2 versions, not dead, not ie > 0",
